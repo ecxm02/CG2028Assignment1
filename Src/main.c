@@ -70,7 +70,7 @@ int iir_c(int N, int* b, int* a, int x_n)
 
 	y_n = x_n*b[0]/a[0];
 
-	for (j=0; j<=N; j++)
+	for (j=0; j<N; j++)
 	{
 		y_n+=(b[j+1]*x_store[j]-a[j+1]*y_store[j])/a[0];
 	}
