@@ -27,13 +27,13 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   ALLOC
  11 .ARM.attributes 00000030  00000000  00000000  000061d0  2**0
                   CONTENTS, READONLY
- 12 .debug_line   00000c60  00000000  00000000  00006200  2**0
+ 12 .debug_line   00000c62  00000000  00000000  00006200  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 13 .debug_line_str 0000005e  00000000  00000000  00006e60  2**0
+ 13 .debug_line_str 0000005e  00000000  00000000  00006e62  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 14 .debug_info   00000391  00000000  00000000  00006ebe  2**0
+ 14 .debug_info   00000391  00000000  00000000  00006ec0  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 15 .debug_abbrev 0000020b  00000000  00000000  0000724f  2**0
+ 15 .debug_abbrev 0000020a  00000000  00000000  00007251  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  16 .debug_aranges 00000090  00000000  00000000  00007460  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
@@ -97,7 +97,10 @@ iir:
  800020a:	4770      	bx	lr
 
 0800020c <SUBROUTINE>:
-
+@R4 Value of i
+@R5 Address of i
+@R10 counter j starting at 1
+@R12 Result of part 1 of arithmetic operation
 SUBROUTINE:
 	PUSH {R4-R12} @Save registers 4 to 12
  800020c:	e92d 1ff0 	stmdb	sp!, {r4, r5, r6, r7, r8, r9, sl, fp, ip}
@@ -111,9 +114,7 @@ SUBROUTINE:
 	SDIV R12, R6, R5 @R6 = x_n * b[0] / a[0]
  8000218:	fb96 fcf5 	sdiv	ip, r6, r5
 
-
-
-	SUB R7, R0, #1 @Loop counter where j = n-1
+	SUB R7, R0, #1 @Loop counter where k = N-1
  800021c:	f1a0 0701 	sub.w	r7, r0, #1
 	LDR R5, =i @R5 stores address of i
  8000220:	4d1d      	ldr	r5, [pc, #116]	@ (8000298 <EXIT+0x28>)
@@ -124,17 +125,19 @@ SUBROUTINE:
  8000224:	f04f 0a01 	mov.w	sl, #1
 
 08000228 <LOOP>:
-
+@R9 Address of y_array, y_a term
+@R10 Counter j
+@R11 Counter storing value of i-1
 LOOP:
 
 	CMP R7, #0 @Compare loop counter with 0
  8000228:	2f00      	cmp	r7, #0
-	BLT EXIT @Exits loop if less than or equals 0
+	BLT EXIT @Exits loop if less than 0
  800022a:	db21      	blt.n	8000270 <EXIT>
 
 	SUB R11, R4, #1 @Exits loop if index less than 0 to avoid illegal memory access
  800022c:	f1a4 0b01 	sub.w	fp, r4, #1
-	CMP R11, #0
+	CMP R11, #0 @R11 stores i-1
  8000230:	f1bb 0f00 	cmp.w	fp, #0
 	BLT EXIT
  8000234:	db1c      	blt.n	8000270 <EXIT>
@@ -144,14 +147,14 @@ LOOP:
 	LDR R9, =y_array @R9 stores address of y_array
  8000238:	f8df 9064 	ldr.w	r9, [pc, #100]	@ 80002a0 <EXIT+0x30>
 
-	LDR R6, [R5, R11, LSL #2] @Loads x_array[i] into R6
+	LDR R6, [R5, R11, LSL #2] @Loads x_array[i-1] into R6
  800023c:	f855 602b 	ldr.w	r6, [r5, fp, lsl #2]
 	LDR R8, [R1, R10, LSL #2] @Loads b[j] into R8, counter starts at 1 and counts to 4
  8000240:	f851 802a 	ldr.w	r8, [r1, sl, lsl #2]
 	MUL R6, R6, R8 @Get b and x term
  8000244:	fb06 f608 	mul.w	r6, r6, r8
 
-	LDR R9, [R9, R11, LSL #2] @Loads y_array[i] into R9
+	LDR R9, [R9, R11, LSL #2] @Loads y_array[i-1] into R9
  8000248:	f859 902b 	ldr.w	r9, [r9, fp, lsl #2]
 	LDR R8, [R2, R10, LSL #2] @Loads a[j] into R8, counter starts at 1 and counts to 4
  800024c:	f852 802a 	ldr.w	r8, [r2, sl, lsl #2]
@@ -162,12 +165,12 @@ LOOP:
  8000254:	eba6 0609 	sub.w	r6, r6, r9
 	LDR R11, [R2] @Loads a[0] into R11
  8000258:	f8d2 b000 	ldr.w	fp, [r2]
-	SDIV R6, R6, R11
+	SDIV R6, R6, R11 @Divides result by a[0]
  800025c:	fb96 f6fb 	sdiv	r6, r6, fp
-	ADD R12, R12, R6
+	ADD R12, R12, R6 @Add the results together
  8000260:	44b4      	add	ip, r6
 
-	SUB R7, R7, #1
+	SUB R7, R7, #1 @Decrement k counter
  8000262:	f1a7 0701 	sub.w	r7, r7, #1
 	SUB R4, #1 @Decrement i counter
  8000266:	f1a4 0401 	sub.w	r4, r4, #1
@@ -177,7 +180,11 @@ LOOP:
  800026e:	e7db      	b.n	8000228 <LOOP>
 
 08000270 <EXIT>:
+@R8 Address of y_array
+
+
 EXIT:
+
 	LDR R7, =x_array
  8000270:	4f0a      	ldr	r7, [pc, #40]	@ (800029c <EXIT+0x2c>)
 	LDR R8, =y_array
@@ -191,19 +198,19 @@ EXIT:
 	MOV R1, #100 @ scaling factor
  800027c:	f04f 0164 	mov.w	r1, #100	@ 0x64
 
-	STR R3, [R7, R4, LSL #2]
+	STR R3, [R7, R4, LSL #2] @Stores x_n into x_array
  8000280:	f847 3024 	str.w	r3, [r7, r4, lsl #2]
-	STR R0, [R8, R4, LSL #2]
+	STR R0, [R8, R4, LSL #2] @Stores y_n into y_array
  8000284:	f848 0024 	str.w	r0, [r8, r4, lsl #2]
 
-	ADD R4, #1
+	ADD R4, #1 @Increments i by 1
  8000288:	f104 0401 	add.w	r4, r4, #1
-	STR R4, [R5]
+	STR R4, [R5] @Stores result of i+1 into memory address of i
  800028c:	602c      	str	r4, [r5, #0]
 
-	SDIV R0, R0, R1 @ R0 = R0 / 100
+	SDIV R0, R0, R1 @R0 = R0 / 100
  800028e:	fb90 f0f1 	sdiv	r0, r0, r1
-	POP {R4-R12}
+	POP {R4-R12} @Restores registers used
  8000292:	e8bd 1ff0 	ldmia.w	sp!, {r4, r5, r6, r7, r8, r9, sl, fp, ip}
 	BX LR
  8000296:	4770      	bx	lr
@@ -1090,12 +1097,12 @@ int main(void)
 	int N = 4;
  8000c92:	2304      	movs	r3, #4
  8000c94:	f8c7 3088 	str.w	r3, [r7, #136]	@ 0x88
-	// within the iir function, we divide y by 100 (decimal) to scale it down
-	//int b[N_MAX+1] = {100, 250, 360, 450, 580}; //N+1 dimensional feedforward
-	//int a[N_MAX+1] = {100, 120, 180, 230, 250}; //N+1 dimensional feedback
-	//int x[X_SIZE] = {100, 230, 280, 410, 540, 600, 480, 390, 250, 160, 100, 340};
 
-	int b[N_MAX+1] = {100, 250, 360, 450, 580};
+	//  NOTE: DO NOT modify the code below this line
+	// think of the values below as numbers of the form y.yy (floating point with 2 digits precision)
+	// which are scaled up to allow them to be used integers
+	// within the iir function, we divide y by 100 (decimal) to scale it down
+	int b[N_MAX+1] = {100, 250, 360, 450, 580}; //N+1 dimensional feedforward
  8000c98:	f107 035c 	add.w	r3, r7, #92	@ 0x5c
  8000c9c:	222c      	movs	r2, #44	@ 0x2c
  8000c9e:	2100      	movs	r1, #0
@@ -1111,8 +1118,7 @@ int main(void)
  8000cb8:	66bb      	str	r3, [r7, #104]	@ 0x68
  8000cba:	f44f 7311 	mov.w	r3, #580	@ 0x244
  8000cbe:	66fb      	str	r3, [r7, #108]	@ 0x6c
-
-	int a[N_MAX+1] = {100, 120, 180, 230, 250};
+	int a[N_MAX+1] = {100, 120, 180, 230, 250}; //N+1 dimensional feedback
  8000cc0:	f107 0330 	add.w	r3, r7, #48	@ 0x30
  8000cc4:	222c      	movs	r2, #44	@ 0x2c
  8000cc6:	2100      	movs	r1, #0
@@ -1128,8 +1134,7 @@ int main(void)
  8000cdc:	63fb      	str	r3, [r7, #60]	@ 0x3c
  8000cde:	23fa      	movs	r3, #250	@ 0xfa
  8000ce0:	643b      	str	r3, [r7, #64]	@ 0x40
-
-	int x[X_SIZE] = {100, -100, 200, -200, 300, -300, 400, -400, 0, 0, 100, -100};
+	int x[X_SIZE] = {100, 230, 280, 410, 540, 600, 480, 390, 250, 160, 100, 340};
  8000ce2:	4b23      	ldr	r3, [pc, #140]	@ (8000d70 <main+0xe8>)
  8000ce4:	463c      	mov	r4, r7
  8000ce6:	461d      	mov	r5, r3
