@@ -1,0 +1,129 @@
+
+\documentclass[12pt,a4paper]{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{longtable}
+\geometry{margin=1in}
+
+\title{CG2028 Assignment 1}
+\author{Su Menghang, Vincent (A0272102X) \\ Chan Xu Ming Ethan (A0273774R)}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{Introduction}
+This assignment implements an Infinite Impulse Response (IIR) filter using ARMv7-M assembly language for the STM32L4S5 microcontroller. The task involves writing an assembly function \texttt{int iir(int N, int* b, int* a, int x\_n)} that processes digital signals according to the IIR filter equation:
+
+\begin{equation}
+y[n] = \frac{1}{a_0} \left( \sum_{i=0}^{N} b_i \cdot x[n-i] - \sum_{i=1}^{N} a_i \cdot y[n-i] \right)
+\end{equation}
+
+The implementation must handle filter coefficients \texttt{b[]} and \texttt{a[]}, maintain internal state for delayed input \texttt{x[n-i]} and output \texttt{y[n-i]} values, and return the current filter output. The assembly function is called from a C program and must work for any filter order N up to N\_MAX = 10.
+
+Key challenges include efficient memory management for storing previous values, proper parameter passing through ARM registers (R0-R3), and optimizing the implementation for better performance than the reference C code provided.
+
+\section*{Question 1}
+Knowing the starting address of a 2-d array \texttt{Arr[][]}, the memory address of element \texttt{Arr[A][B]} 
+with index A and B starting from 0 is:
+\begin{equation}
+\text{Address} = \text{Base} + (A \times N + B) \times 4
+\end{equation}
+where each integer takes 4 bytes and $N$ is the number of columns.
+
+\section*{Question 2}
+After executing \texttt{BX LR}, the Link Register points to the instruction immediately after the call to \texttt{foo} 
+in \texttt{main.c}, i.e. the \texttt{printf} at Line 36. This is because \texttt{BL foo} stored the return address in LR 
+before branching. Although LR was modified inside \texttt{foo} by another \texttt{BL}, the \texttt{PUSH \{LR\}} 
+and \texttt{POP \{LR\}} preserved the original return address.
+
+\section*{Question 3}
+\begin{itemize}   
+\item[(i)] Without \texttt{PUSH \{R14\}} and \texttt{POP \{R14\}}, the original LR (pointing to the \texttt{printf} in Line 36) 
+gets overwritten by the inner \texttt{BL SUBROUTINE}. At the end, \texttt{BX LR} branches back into the instruction itself, 
+causing an infinite loop / incorrect return.
+
+\item[(ii)] With \texttt{PUSH \{R14\}} and \texttt{POP \{R14\}}, the original LR is saved on the stack and restored 
+after the subroutine call. Thus \texttt{BX LR} correctly returns execution to the \texttt{printf} in Line 36, and the program behaves correctly.
+\end{itemize}
+
+\section*{Question 4}
+If the number of values exceeds the available registers, excess or less frequently used variables can be stored in memory 
+using the \texttt{STR} instruction. When needed, they can be reloaded into registers using the \texttt{LDR} instruction.
+
+\section*{Question 5}
+Machine code representations:
+\begin{longtable}{|c|c|c|c|}
+\hline
+No. & Instruction & Binary & Hex \\ \hline
+1 & \texttt{ADD R12, R12, R6} & 0b00000000100011001100000000000110 & 0x008CC006 \\ \hline
+2 & \texttt{LDR R4, [R1]} & 0b00000101000100010100000000000000 & 0x05114000 \\ \hline
+3 & \texttt{BLT EXIT} & 0b10111000000000000000000000001100 & 0xB800000C \\ \hline
+4 & \texttt{MUL R6, R6, R8} & 0b00000000000000000110100000000110 & 0x00006806 \\ \hline
+5 & \texttt{STR R4, [R5]} & 0b00000101000001010100000000000000 & 0x05054000 \\ \hline
+\end{longtable}
+
+\section*{Question 6}
+A modified datapath design includes:
+\begin{itemize}
+\item Adding a hardware multiplier block \texttt{MUL} with inputs \texttt{Mult\_In\_A}, \texttt{Mult\_In\_B}, and output \texttt{Mult\_Out\_Product}.
+\item Adding a third read port (A3/RD3) in the register file to supply the additional source operand for MLA.
+\item For MUL: Product routed directly into the Result MUX and written to Rd.
+\item For MLA: Product routed into an adder with Ra (from RD1) before Result MUX, then written to Rd.
+\item Control logic updated to distinguish between \texttt{MUL} and \texttt{MLA}.
+\end{itemize}
+
+\textbf{Program Logic}
+\begin{itemize}
+\item \textit{In SUBROUTINE:}
+  \begin{itemize}
+  \item \texttt{R4--R12} are pushed onto the stack.
+  \item \texttt{b[0]} and \texttt{a[0]} are loaded; result of \texttt{x\_n * b[0] / a[0]} stored in \texttt{R12}.
+  \item Loop counter $k \gets N-1$; index $i$ (current position in circular buffer) and $j$ (coefficient index) initialized.
+  \item Circular buffer index loaded from memory to track current position.
+  \end{itemize}
+
+\item \textit{In LOOP:}
+  \begin{itemize}
+  \item Compare $k$ with 0; exit if less than zero.
+  \item Calculate previous indices using modular arithmetic: \texttt{prev\_idx = (current\_idx - j - 1) mod N}.
+  \item Load \texttt{x\_array[prev\_idx]}, \texttt{y\_array[prev\_idx]}, \texttt{b[j+1]}, \texttt{a[j+1]}.
+  \item Compute \texttt{x\_b = b[j+1] * x\_array[prev\_idx]}, \texttt{y\_a = a[j+1] * y\_array[prev\_idx]}.
+  \item Calculate \texttt{(x\_b - y\_a) / a[0]} and add to running sum in \texttt{R12}.
+  \item Update counters: decrement $k$, increment $j$.
+  \end{itemize}
+
+\item \textit{In EXIT:}
+  \begin{itemize}
+  \item Move result from \texttt{R12} to \texttt{R0}.
+  \item Scale by dividing by 100.
+  \item Store new \texttt{x\_n} and \texttt{y\_n} into arrays at current index $i$.
+  \item Increment $i$ with wrap-around and store back to memory.
+  \item Restore registers with \texttt{POP}.
+  \item Return with \texttt{BX LR}.
+  \end{itemize}
+\end{itemize}
+
+\textbf{Improvements Made}
+\begin{itemize}
+\item Original C code shifts arrays \texttt{x\_store} and \texttt{y\_store}, requiring $O(N)$ updates per iteration.
+\item Optimized assembly avoids shifting by using a circular buffer with index counter \texttt{i}.
+\item New values stored directly at \texttt{x\_store[i]} and \texttt{y\_store[i]} without moving other elements.
+\item Memory operations reduced from $2N$ to 2 per iteration (67\% reduction for N=4).
+\item Instructions reordered to minimize pipeline stalls and improve execution efficiency.
+\item Register allocation strategy minimizes memory access by keeping frequently used values in registers.
+\item Loop structure optimized to reduce branch overhead and improve cache performance.
+\end{itemize}
+
+\section*{Appendix: Contributions}
+\begin{tabular}{|c|c|}
+\hline
+Name & Contribution \\ \hline
+Vincent & Assembly code and report (focus on code) \\ \hline
+Ethan & Assembly code and report (focus on report) \\ \hline
+\end{tabular}
+
+\end{document}

@@ -17,7 +17,7 @@
 @ CG2028 Assignment 1, Sem 1, AY 2025/26
 @ (c) ECE NUS, 2025
 
-@ Write Student 1’s Name here:
+@ Write Student 1’s Name here: Chan Xu Ming Ethan (A0273774R)
 @ Write Student 2’s Name here:
 
 @ You could create a look-up table of registers here:
